@@ -1,10 +1,11 @@
 import 'dart:io';
-
-import 'package:band_names_app/models/todo.dart';
+import 'dart:ui';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/src/widgets/container.dart';
-import 'package:flutter/src/widgets/framework.dart';
+import 'package:pie_chart/pie_chart.dart';
+import 'package:provider/provider.dart';
+import 'package:band_names_app/models/todo.dart';
+import '../services/socket_service.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -15,50 +16,95 @@ class HomePage extends StatefulWidget {
 
 class _HomePageState extends State<HomePage> {
 List <Todo> todos=[
-  Todo(id:'1',name:'Limpiar',rank: 1),
-  Todo(id:'1',name:'Estudiar',rank: 2),
-  Todo(id:'1',name:'Ejercicio',rank: 3),
-  Todo(id:'1',name:'Compras',rank: 4)
+
 ];
 
+@override
+  void initState() {
+     final socketService=Provider.of<SocketService>(context,listen:false);
+     socketService.socket.on('active-todos', _handleActiveTodos);
+    super.initState();
+  }
+
+ _handleActiveTodos(dynamic payload){
+      todos=(payload as List)
+      .map((todo) => Todo.fromMap(todo) ).toList();
+      //setState para que redibuje el widget completo cuando se reciba un evento del tipo'active-todos'
+      setState((){});
+ }
+
+
+//Si se destruye la pantalla dejamos de escuchar
+@override
+  void dispose() {
+    final socketService=Provider.of<SocketService>(context,listen:false);
+    socketService.socket.off('active-todos');
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
+   final socketService=Provider.of<SocketService>(context);
     return Scaffold(
       appBar: AppBar(
         title: const Center(child: Text('List of todos',style: TextStyle(color:Colors.black87),)),
         backgroundColor: Colors.white,
         elevation: 1,
+        actions: [
+          Container(
+            margin:const EdgeInsets.only(right: 10),
+            child:socketService.serverStatus==ServerStatus.Online ?
+             Icon(Icons.check_circle,color: Colors.green[200],):
+              const Icon(Icons.offline_bolt,color: Colors.grey,),
+          )
+        ],
       ),
         
-      body: ListView.builder(
-        itemCount: todos.length,
-        itemBuilder: (BuildContext context, int i) => _todosTile(todos[i])
+      body: Padding(
+        padding: const EdgeInsets.all(10.0),
+        child:  todos.isEmpty?  Center(child: Text('Add a todo')) : Column(
+
+children: [
+  Text('Todos of the day',style: TextStyle(color: Colors.pinkAccent,fontSize: 15),),
+
+  _showGraph(),
+  //El expanded toma todo el espacio disponible en base a esta columna
+  Expanded
+  (
+    child: ListView.builder(
+            itemCount: todos.length,
+            itemBuilder: (BuildContext context, int i) => _todosTile(todos[i])
+            ),
+  ),
+],
         ),
+      ),
         floatingActionButton:FloatingActionButton(
           onPressed:addNewTodo,
           elevation: 1,
           backgroundColor: Colors.pink,
-          child: Icon(Icons.add),
+          child: const Icon(Icons.add),
            ),
     );
   }
 
  _todosTile(Todo todo) {
+ final socketService=Provider.of<SocketService>(context,listen: false);
     return Dismissible(
       key: Key(todo.id!),
       direction: DismissDirection.endToStart,
-      onDismissed: (direction){
-        print('direction:$direction');
+      onDismissed: (_){
+       
+        socketService.socket.emit('delete-todo',{'id':todo.id});
         //borrar en el server
       },
       background: Container(
-        padding: EdgeInsets.only(right: 10.0),
+        padding: const EdgeInsets.only(right: 10.0),
         color: Colors.grey,
         // ignore: prefer_const_constructors
         child: Align(
           alignment: Alignment.centerRight,
-          child: Text('Delete todo',style:TextStyle(color: Colors.white))),
+          child: const Text('Delete todo',style:TextStyle(color: Colors.white))),
       ),
       child: ListTile(
             leading: CircleAvatar(
@@ -66,9 +112,9 @@ List <Todo> todos=[
               child: Text(todo.name!.toUpperCase().substring(0,1),style: TextStyle(color: Colors.pink[50]),),
             ),
             title: Text(todo.name!,style: TextStyle(color: Colors.pink[300])),
-            trailing: Text('${todo.rank!}',style: const TextStyle(color: Colors.pink, fontSize: 20),),
+            trailing: Text('${todo.rank! }hr',style: const TextStyle(color: Colors.pink, fontSize: 20),),
             onTap: (){
-              print(todo.name);
+              socketService.socket.emit('rank-todo',{'id':todo.id});
             },
           ),
     );
@@ -77,10 +123,9 @@ List <Todo> todos=[
   addNewTodo(){
     final textControler=TextEditingController();
     if (Platform.isAndroid){
-    showDialog(
+   return showDialog(
       context: context,
-       builder: (BuildContext context){
-        return AlertDialog(
+       builder: (_)=> AlertDialog(
           title: Text('New todo:',style: TextStyle(color: Colors.pink[200]),),
           content: TextField(cursorColor:Colors.pink[50],controller: textControler,),
           actions: [
@@ -89,15 +134,13 @@ List <Todo> todos=[
               onPressed: ()=>addTodo(textControler.text),
               child: Text('ADD',style: TextStyle(color: Colors.pink[200]),))
           ],
-        );
-       }
+        )
        );
        }
-       if (!Platform.isAndroid){
+      
     showCupertinoDialog(
       context: context,
-       builder: (BuildContext context){
-        return  CupertinoAlertDialog(
+       builder: (_)=>  CupertinoAlertDialog(
           title:  Text('New todo:',style: TextStyle(color: Colors.pink[200]),),
           content: CupertinoTextField(cursorColor:Colors.pink[50],controller: textControler),
           actions: [
@@ -113,19 +156,75 @@ List <Todo> todos=[
               )
           ],
 
-        );
-       }
+        )
        );
-  }}
+  }
 
   void addTodo(String name){
+
 if(name.length>1){
-  todos.add(Todo(id:DateTime.now().toString(),name: name,rank: 5));
-  setState(() {
-    
-  });
+  final socketService=Provider.of<SocketService>(context,listen:false);
+ socketService.socket.emit('new-todo',{'name':name});
   //Puedo agregar
 }
 Navigator.pop(context);
   }
+
+
+  _showGraph(){
+    Map <String, double>dataMap =new Map();
+    todos.forEach((todo) {
+   dataMap.putIfAbsent(todo.name!, () => todo.rank!.toDouble());
+     });
+
+ final List<Color>colorList=[
+
+  Colors.pinkAccent,
+  Colors.pink,
+  Colors.purpleAccent,
+  Colors.deepPurple,
+  Colors.deepPurpleAccent,
+
+
+  
+
+ ] ;        
+
+return Container(
+  width: double.infinity,
+  height: 200,
+  
+  child: PieChart(
+      dataMap: dataMap,
+      animationDuration: const Duration(milliseconds: 800),
+      chartLegendSpacing: 32,
+      chartRadius: MediaQuery.of(context).size.width / 3.2,
+      colorList: colorList,
+      initialAngleInDegree: 0,
+      chartType: ChartType.disc,
+      ringStrokeWidth: 32,
+      centerText: "Day",
+      legendOptions: const LegendOptions(
+        showLegendsInRow: false,
+        legendPosition: LegendPosition.right,
+        showLegends: true,
+        legendShape:BoxShape.circle,
+        legendTextStyle: TextStyle(
+          fontWeight: FontWeight.bold,
+          color: Colors.deepPurple
+        ),
+      ),
+      chartValuesOptions: const ChartValuesOptions(
+ 
+        showChartValueBackground: false,
+        showChartValues: true,
+        showChartValuesInPercentage: true,
+        showChartValuesOutside: false,
+        decimalPlaces: 0,
+      ),
+      // gradientList: ---To add gradient colors---
+      // emptyColorGradient: ---Empty Color gradient---
+    ));
+              
+}
 }

@@ -15,9 +15,9 @@ class Todo {
 
   factory Todo.fromMap(Map<String,dynamic>obj)=>Todo(
     
-      id:obj['id'],
-      name:obj['name'],
-      rank:obj['rank']
+      id:obj.containsKey('id')?obj['id']:'noid',
+      name:obj.containsKey('name')?obj['name']:'noname',
+      rank:obj.containsKey('rank')?obj['rank']:0,
     
   );
 }

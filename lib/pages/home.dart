@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'dart:ui';
+import 'package:date_format/date_format.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:pie_chart/pie_chart.dart';
@@ -23,6 +24,8 @@ List <Todo> todos=[
   void initState() {
      final socketService=Provider.of<SocketService>(context,listen:false);
      socketService.socket.on('active-todos', _handleActiveTodos);
+
+
     super.initState();
   }
 
@@ -44,10 +47,14 @@ List <Todo> todos=[
 
   @override
   Widget build(BuildContext context) {
+    DateTime now = DateTime.now();
+ String convertedDateTime = "${now.year.toString()}-${now.month.toString().padLeft(2,'0')}-${now.day.toString().padLeft(2,'0')}   ${now.hour.toString().padLeft(2,'0')}:${now.minute.toString().padLeft(2,'0')}";
+       
+   
    final socketService=Provider.of<SocketService>(context);
     return Scaffold(
       appBar: AppBar(
-        title: const Center(child: Text('List of todos',style: TextStyle(color:Colors.black87),)),
+        title: Center(child: Text(convertedDateTime,style: TextStyle(color:Colors.black87),)),
         backgroundColor: Colors.white,
         elevation: 1,
         actions: [
@@ -112,10 +119,27 @@ children: [
               child: Text(todo.name!.toUpperCase().substring(0,1),style: TextStyle(color: Colors.pink[50]),),
             ),
             title: Text(todo.name!,style: TextStyle(color: Colors.pink[300])),
-            trailing: Text('${todo.rank! }hr',style: const TextStyle(color: Colors.pink, fontSize: 20),),
-            onTap: (){
-              socketService.socket.emit('rank-todo',{'id':todo.id});
-            },
+            trailing: FittedBox(
+    child: Row(
+      children: [
+        IconButton(
+          onPressed: () {
+                 socketService.socket.emit('unRank-todo',{'id':todo.id});
+          },
+          icon: Icon(Icons.remove),
+          color: Colors.pinkAccent
+        ),
+         Text('${todo.rank! }hr',style: const TextStyle(color: Colors.pink, fontSize: 20),),
+        IconButton(
+          onPressed: () {
+             socketService.socket.emit('rank-todo',{'id':todo.id});
+          },
+          icon: Icon(Icons.add),
+           color: Colors.pinkAccent
+        ),
+      ],
+    ),
+  ),
           ),
     );
   }

@@ -20,7 +20,7 @@ _initConfig();
 }
 
 void _initConfig(){
-  _socket = IO.io('http://192.168.1.9:3000',{
+  _socket = IO.io('https://flutter-socket-server-oxcf.onrender.com/',{
   'transports':['websocket'],
   'autoConnect':true
 });

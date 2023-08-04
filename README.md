@@ -5,8 +5,6 @@ Todos App es una aplicación de Flutter que permite crear y gestionar tareas por
 
 La aplicación muestra la fecha y hora actual en la parte superior de la pantalla, actualizándose en tiempo real. Además, cuenta con un botón flotante que permite agregar nuevas tareas a la lista. Cada tarea muestra la cantidad de horas dedicadas, la cual se puede incrementar o decrementar. También es posible eliminar una tarea de la lista. La aplicación incluye un gráfico circular (PieChart) que muestra el porcentaje de las tareas realizadas según la cantidad de horas.
 
-## Capturas de pantalla
-_Inserta aquí algunas capturas de pantalla de tu aplicación_
 
 ## Funcionalidades principales
 - Muestra la fecha y hora actual en tiempo real.
